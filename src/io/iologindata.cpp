@@ -336,6 +336,7 @@ void IOLoginData::increaseBankBalance(uint32_t guid, uint64_t bankBalance) {
 	Database::getInstance().executeQuery(query.str());
 }
 
+/*
 bool IOLoginData::hasBiddedOnHouse(uint32_t guid) {
 	Database &db = Database::getInstance();
 
@@ -343,6 +344,7 @@ bool IOLoginData::hasBiddedOnHouse(uint32_t guid) {
 	query << "SELECT `id` FROM `houses` WHERE `highest_bidder` = " << guid << " LIMIT 1";
 	return db.storeQuery(query.str()).get() != nullptr;
 }
+*/
 
 std::vector<VIPEntry> IOLoginData::getVIPEntries(uint32_t accountId) {
 	std::string query = fmt::format("SELECT `player_id`, (SELECT `name` FROM `players` WHERE `id` = `player_id`) AS `name`, `description`, `icon`, `notify` FROM `account_viplist` WHERE `account_id` = {}", accountId);

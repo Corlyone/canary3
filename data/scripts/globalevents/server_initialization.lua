@@ -28,7 +28,7 @@ local function moveExpiredBansToHistory()
 end
 
 -- Function to check and process house auctions
-local function processHouseAuctions()
+--[[local function processHouseAuctions()
 	local resultId = db.storeQuery("SELECT `id`, `highest_bidder`, `last_bid`, " .. "(SELECT `balance` FROM `players` WHERE `players`.`id` = `highest_bidder`) AS `balance` " .. "FROM `houses` WHERE `owner` = 0 AND `bid_end` != 0 AND `bid_end` < " .. os.time())
 	if resultId then
 		repeat
@@ -48,7 +48,7 @@ local function processHouseAuctions()
 
 		Result.free(resultId)
 	end
-end
+end]]--
 
 -- Function to store towns in the database
 local function storeTownsInDatabase()
@@ -150,7 +150,7 @@ function serverInitialization.onStartup()
 
 	cleanupDatabase()
 	moveExpiredBansToHistory()
-	processHouseAuctions()
+	--processHouseAuctions()
 	storeTownsInDatabase()
 	checkAndLogDuplicateValues({ "Global", "GlobalStorage", "Storage" })
 	updateEventRates()

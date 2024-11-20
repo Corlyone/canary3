@@ -17,6 +17,7 @@
 #include "map/house/house.hpp"
 #include "creatures/players/player.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
+#include "account/account.hpp"
 
 void HouseFunctions::init(lua_State* L) {
 	Lua::registerSharedClass(L, "House", "", HouseFunctions::luaHouseCreate);
@@ -238,7 +239,8 @@ int HouseFunctions::luaHouseStartTrade(lua_State* L) {
 		return 1;
 	}
 
-	if (IOLoginData::hasBiddedOnHouse(tradePartner->getGUID())) {
+	//if (IOLoginData::hasBiddedOnHouse(tradePartner->getGUID())) {
+	if (tradePartner->getAccount()->getHouseBidId() != 0) {
 		lua_pushnumber(L, RETURNVALUE_TRADEPLAYERHIGHESTBIDDER);
 		return 1;
 	}
