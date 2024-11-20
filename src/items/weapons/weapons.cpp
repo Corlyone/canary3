@@ -942,6 +942,7 @@ void WeaponWand::configureWeapon(const ItemType &it) {
 }
 
 int32_t WeaponWand::getWeaponDamage(const std::shared_ptr<Player> &player, const std::shared_ptr<Creature> &, const std::shared_ptr<Item> &, bool maxDamage /* = false*/) const {
+	/*
 	if (!g_configManager().getBoolean(TOGGLE_CHAIN_SYSTEM)) {
 		// Returns maximum damage or a random value between minChange and maxChange
 		return maxDamage ? -maxChange : -normal_random(minChange, maxChange);
@@ -971,6 +972,8 @@ int32_t WeaponWand::getWeaponDamage(const std::shared_ptr<Player> &player, const
 
 	// Returns the calculated maximum damage or a random value between the calculated minimum and maximum
 	return maxDamage ? -max : -normal_random(min, max);
+	*/
+	return maxDamage ? -maxChange : -normal_random(minChange, maxChange);
 }
 
 int16_t WeaponWand::getElementDamageValue() const {
