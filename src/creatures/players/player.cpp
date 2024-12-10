@@ -49,6 +49,7 @@
 #include "io/iobestiary.hpp"
 #include "io/iologindata.hpp"
 #include "io/ioprey.hpp"
+#include "creatures/players/imbuements/imbuements.hpp"
 #include "items/bed.hpp"
 #include "items/containers/depot/depotchest.hpp"
 #include "items/containers/depot/depotlocker.hpp"
@@ -682,6 +683,7 @@ void Player::updateInventoryWeight() {
 	}
 }
 
+/*
 void Player::updateInventoryImbuement() {
 	// Get the tile the player is currently on
 	const auto &playerTile = getTile();
@@ -738,6 +740,7 @@ void Player::updateInventoryImbuement() {
 		}
 	}
 }
+*/
 
 phmap::flat_hash_map<uint8_t, std::shared_ptr<Item>> Player::getAllSlotItems() const {
 	phmap::flat_hash_map<uint8_t, std::shared_ptr<Item>> itemMap;
@@ -2364,6 +2367,7 @@ void Player::onApplyImbuement(const Imbuement* imbuement, const std::shared_ptr<
 		addItemImbuementStats(imbuement);
 	}
 
+	g_imbuementDecay().startImbuementDecay(item);
 	item->addImbuement(slot, imbuement->getID(), baseImbuement->duration);
 	openImbuementWindow(item);
 }
@@ -3456,9 +3460,13 @@ void Player::doAttacking(uint32_t interval) {
 		}
 
 		const auto &task = createPlayerTask(
-			std::max<uint32_t>(SCHEDULER_MINTICKS, delay),
-			[playerId = getID()] { g_game().checkCreatureAttack(playerId); },
-			__FUNCTION__
+			//std::max<uint32_t>(SCHEDULER_MINTICKS, delay),
+			//[playerId = getID()] { g_game().checkCreatureAttack(playerId); },
+			//__FUNCTION__
+			std::max<uint32_t>(SCHEDULER_MINTICKS, delay), [self = std::weak_ptr<Creature>(getCreature())] {
+				if (const auto &creature = self.lock()) {
+					creature->checkCreatureAttack(true);
+				} }, __FUNCTION__
 		);
 
 		if (!classicSpeed) {
@@ -5065,10 +5073,13 @@ ItemsTierCountList Player::getDepotInboxItemsId() const {
 	ItemsTierCountList itemMap;
 
 	const auto &inboxPtr = getInbox();
-	const auto &container = inboxPtr->getContainer();
+	const auto &container = inboxPtr ? inboxPtr->getContainer() : nullptr;
 	if (container) {
 		for (ContainerIterator it = container->iterator(); it.hasNext(); it.advance()) {
 			const auto &item = *it;
+			if (!item) {
+				continue;
+			}
 			(itemMap[item->getID()])[item->getTier()] += Item::countByType(item, -1);
 		}
 	}
@@ -5318,7 +5329,8 @@ bool Player::setAttackedCreature(const std::shared_ptr<Creature> &creature) {
 	}
 
 	if (creature) {
-		g_dispatcher().addEvent([creatureId = getID()] { g_game().checkCreatureAttack(creatureId); }, __FUNCTION__);
+		//g_dispatcher().addEvent([creatureId = getID()] { g_game().checkCreatureAttack(creatureId); }, __FUNCTION__);
+		checkCreatureAttack();
 	}
 	return true;
 }
@@ -10668,7 +10680,8 @@ void Player::onCreatureMove(const std::shared_ptr<Creature> &creature, const std
 	const auto &followCreature = getFollowCreature();
 	if (hasFollowPath && (creature == followCreature || (creature.get() == this && followCreature))) {
 		isUpdatingPath = false;
-		g_game().updateCreatureWalk(getID()); // internally uses addEventWalk.
+		//g_game().updateCreatureWalk(getID()); // internally uses addEventWalk.
+		updateCreatureWalk();
 	}
 
 	if (creature != getPlayer()) {

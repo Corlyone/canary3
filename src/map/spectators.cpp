@@ -42,7 +42,7 @@ Spectators Spectators::insertAll(const CreatureVector &list) {
 }
 
 bool Spectators::checkCache(const SpectatorsCache::FloorData &specData, bool onlyPlayers, bool onlyMonsters, bool onlyNpcs, const Position &centerPos, bool checkDistance, bool multifloor, int32_t minRangeX, int32_t maxRangeX, int32_t minRangeY, int32_t maxRangeY) {
-	const auto &list = multifloor || !specData.floor ? specData.multiFloor : specData.floor;
+	const auto &list = (multifloor || !specData.floor) ? specData.multiFloor : specData.floor;
 
 	if (!list) {
 		return false;
@@ -56,20 +56,19 @@ bool Spectators::checkCache(const SpectatorsCache::FloorData &specData, bool onl
 	if (checkDistance) {
 		CreatureVector spectators;
 		spectators.reserve(creatures.size());
+
 		for (const auto &creature : *list) {
 			const auto &specPos = creature->getPosition();
-			if ((centerPos.x - specPos.x >= minRangeX
-			         && centerPos.y - specPos.y >= minRangeY
-			         && centerPos.x - specPos.x <= maxRangeX
-			         && centerPos.y - specPos.y <= maxRangeY
-			         && (multifloor || specPos.z == centerPos.z)
-			         && ((onlyPlayers && creature->getPlayer())
-			             || (onlyMonsters && creature->getMonster())
-			             || (onlyNpcs && creature->getNpc()))
-			     || (!onlyPlayers && !onlyMonsters && !onlyNpcs))) {
+
+			bool withinDistance = (centerPos.x - specPos.x >= minRangeX) && (centerPos.x - specPos.x <= maxRangeX) && (centerPos.y - specPos.y >= minRangeY) && (centerPos.y - specPos.y <= maxRangeY) && (multifloor || specPos.z == centerPos.z);
+
+			bool matchesType = (onlyPlayers && creature->getPlayer()) || (onlyMonsters && creature->getMonster()) || (onlyNpcs && creature->getNpc()) || (!onlyPlayers && !onlyMonsters && !onlyNpcs);
+
+			if (withinDistance && matchesType) {
 				spectators.emplace_back(creature);
 			}
 		}
+
 		insertAll(spectators);
 	} else {
 		insertAll(*list);
@@ -249,7 +248,8 @@ Spectators Spectators::excludeMaster() const {
 }
 
 Spectators Spectators::excludePlayerMaster() const {
-	auto specs = Spectators();
+	Spectators specs;
+
 	if (creatures.empty()) {
 		return specs;
 	}
@@ -257,7 +257,10 @@ Spectators Spectators::excludePlayerMaster() const {
 	specs.creatures.reserve(creatures.size());
 
 	for (const auto &c : creatures) {
-		if ((c->getMonster() != nullptr && !c->getMaster() || !c->getMaster()->getPlayer())) {
+		// Exclude creatures that are monsters without a master or whose master is not a player
+		bool isMonsterWithoutPlayerMaster = (c->getMonster() != nullptr) && (!c->getMaster() || !c->getMaster()->getPlayer());
+
+		if (isMonsterWithoutPlayerMaster) {
 			specs.insert(c);
 		}
 	}

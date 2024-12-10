@@ -282,12 +282,12 @@ bool IOMapSerialize::loadHouseInfo() {
 	do {
 		auto houseId = result->getNumber<uint32_t>("id");
 		const auto house = g_game().map.houses.getHouse(houseId);
-		//if (house) {
-			//auto owner = result->getNumber<uint32_t>("owner");
-			//auto newOwner = result->getNumber<int32_t>("new_owner");
+		/* if (house) {
+			auto owner = result->getNumber<uint32_t>("owner");
+			auto newOwner = result->getNumber<int32_t>("new_owner");
 			// Transfer house owner
-			//auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
-			//if (isTransferOnRestart && newOwner >= 0) {
+			auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
+			if (isTransferOnRestart && newOwner >= 0) {*/
 		if (!house) {
 			continue;
 		}
@@ -330,13 +330,13 @@ bool IOMapSerialize::loadHouseInfo() {
 			g_logger().debug("[TRANSFER] - Removing house id '{}' from owner GUID '{}' and transfering to new owner GUID '{}'", houseId, owner, bidder);
 			if (transferStatus) {
 				g_game().setTransferPlayerHouseItems(houseId, owner);
-				//if (newOwner == 0) {
-					//g_logger().debug("Removing house id '{}' owner", houseId);
-					//house->setOwner(0);
-				//} else {
-					//g_logger().debug("Setting house id '{}' owner to player GUID '{}'", houseId, newOwner);
-					//house->setOwner(newOwner);
-				//}
+				/* if (newOwner == 0) {
+					g_logger().debug("Removing house id '{}' owner", houseId);
+					house->setOwner(0);
+				} else {
+					g_logger().debug("Setting house id '{}' owner to player GUID '{}'", houseId, newOwner);
+					house->setOwner(newOwner);
+				}*/
 				house->setOwner(bidder);
 				IOLoginData::increaseBankBalance(owner, internalBid);
 			} else {
@@ -397,9 +397,9 @@ bool IOMapSerialize::SaveHouseInfoGuard() {
 
 	std::ostringstream query;
 	//DBInsert houseUpdate("INSERT INTO `houses` (`id`, `owner`, `paid`, `warnings`, `name`, `town_id`, `rent`, `size`, `beds`) VALUES ");
-	//houseUpdate.upsert({ "owner", "paid", "warnings", "name", "town_id", "rent", "size", "beds" });
 	DBInsert houseUpdate("INSERT INTO `houses` (`id`, `owner`, `paid`, `warnings`, `name`, `town_id`, `rent`, `size`, `beds`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status`) VALUES ");
 	houseUpdate.upsert({ "owner", "paid", "warnings", "name", "town_id", "rent", "size", "beds", "bidder", "bidder_name", "highest_bid", "internal_bid", "bid_end_date", "state", "transfer_status" });
+	//houseUpdate.upsert({ "owner", "paid", "warnings", "name", "town_id", "rent", "size", "beds" });
 
 	for (const auto &[key, house] : g_game().map.houses.getHouses()) {
 		//std::string values = fmt::format("{},{},{},{},{},{},{},{},{}", house->getId(), house->getOwner(), house->getPaidUntil(), house->getPayRentWarnings(), db.escapeString(house->getName()), house->getTownId(), house->getRent(), house->getSize(), house->getBedCount());

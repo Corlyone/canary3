@@ -66,10 +66,11 @@ private:
 		const static std::unordered_set<std::string_view> tasksContext = {
 			"Decay::checkDecay",
 			"Dispatcher::asyncEvent",
-			"Game::checkCreatureAttack",
+			//"Game::checkCreatureAttack",
+			"Creature::checkCreatureAttack",
 			"Game::checkCreatureWalk",
 			"Game::checkCreatures",
-			"Game::checkImbuements",
+			//"Game::checkImbuements",
 			"Game::checkLight",
 			"Game::createFiendishMonsters",
 			"Game::createInfluencedMonsters",
@@ -88,7 +89,9 @@ private:
 			"SpawnNpc::checkSpawnNpc",
 			"Webhook::run",
 			"Protocol::sendRecvMessageCallback",
-			"Player::addInFightTicks"
+			"Player::addInFightTicks",
+			"Map::moveCreature",
+			"Creature::goToFollowCreature_async"
 		};
 
 		return tasksContext.contains(context);

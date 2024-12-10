@@ -162,16 +162,15 @@ void House::updateDoorDescription() const {
 		ss << "It belongs to house '" << houseName << "'. Nobody owns this house.";
 	}
 
-	//ss << " It is " << getSize() << " square meters.";
-	//const int32_t housePrice = getPrice();
-	//if (housePrice != -1) {
-		//if (g_configManager().getBoolean(HOUSE_PURSHASED_SHOW_PRICE) || owner == 0) {
-			//ss << " It costs " << formatNumber(getPrice()) << " gold coins.";
-		//}
-		//std::string strRentPeriod = asLowerCaseString(g_configManager().getString(HOUSE_RENT_PERIOD));
-		//if (strRentPeriod != "never") {
-			//ss << " The rent cost is " << formatNumber(getRent()) << " gold coins and it is billed " << strRentPeriod << ".";
-
+	/* ss << " It is " << getSize() << " square meters.";
+	const int32_t housePrice = getPrice();
+	if (housePrice != -1) {
+		if (g_configManager().getBoolean(HOUSE_PURSHASED_SHOW_PRICE) || owner == 0) {
+			ss << " It costs " << formatNumber(getPrice()) << " gold coins.";
+		}
+		std::string strRentPeriod = asLowerCaseString(g_configManager().getString(HOUSE_RENT_PERIOD));
+		if (strRentPeriod != "never") {
+			ss << " The rent cost is " << formatNumber(getRent()) << " gold coins and it is billed " << strRentPeriod << ".";*/
 	if (!g_configManager().getBoolean(CYCLOPEDIA_HOUSE_AUCTION)) {
 		ss << " It is " << getSize() << " square meters.";
 		const int32_t housePrice = getPrice();
@@ -941,7 +940,7 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const {
 			if (house->getPayRentWarnings() < 7) {
 				const int32_t daysLeft = 7 - house->getPayRentWarnings();
 
-				std::shared_ptr<Item> letter = Item::CreateItem(ITEM_LETTER_STAMPED);
+				const std::shared_ptr<Item> &letter = Item::CreateItem(ITEM_LETTER_STAMPED);
 				std::string period;
 
 				switch (rentPeriod) {
@@ -968,7 +967,8 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const {
 				std::ostringstream ss;
 				ss << "Warning! \nThe " << period << " rent of " << house->getRent() << " gold for your house \"" << house->getName() << "\" is payable. Have it within " << daysLeft << " days or you will lose this house.";
 				letter->setAttribute(ItemAttribute_t::TEXT, ss.str());
-				g_game().internalAddItem(player->getInbox(), letter, INDEX_WHEREEVER, FLAG_NOLIMIT);
+				const auto &playerInbox = player->getInbox();
+				g_game().internalAddItem(playerInbox, letter, INDEX_WHEREEVER, FLAG_NOLIMIT);
 				house->setPayRentWarnings(house->getPayRentWarnings() + 1);
 			} else {
 				house->setOwner(0, true, player);

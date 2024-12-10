@@ -14,6 +14,7 @@
 #include "map/house/housetile.hpp"
 #include "game/movement/position.hpp"
 #include "enums/player_cyclopedia.hpp"
+#include <creatures/players/cyclopedia/player_cyclopedia.hpp>
 
 class House;
 class BedItem;
@@ -235,7 +236,6 @@ public:
 	bool hasItemOnTile() const;
 	bool hasNewOwnership() const;
 	void setNewOwnership();
-
 	void setClientId(uint32_t newClientId) {
 		this->m_clientId = newClientId;
 	}
@@ -409,7 +409,6 @@ public:
 	}
 
 	std::shared_ptr<House> getHouseByPlayerId(uint32_t playerId) const;
-
 	std::vector<std::shared_ptr<House>> getAllHousesByPlayerId(uint32_t playerId);
 	std::shared_ptr<House> getHouseByBidderName(const std::string &bidderName);
 	uint16_t getHouseCountByAccount(uint32_t accountId);

@@ -543,9 +543,11 @@ void Game::start(ServiceManager* manager) {
 	g_dispatcher().cycleEvent(
 		EVENT_CHECK_CREATURE_INTERVAL, [this] { checkCreatures(); }, "Game::checkCreatures"
 	);
+	/*
 	g_dispatcher().cycleEvent(
 		EVENT_IMBUEMENT_INTERVAL, [this] { checkImbuements(); }, "Game::checkImbuements"
 	);
+	*/
 	g_dispatcher().cycleEvent(
 		EVENT_LUA_GARBAGE_COLLECTION, [this] { g_luaEnvironment().collectGarbage(); }, "Calling GC"
 	);
@@ -1258,6 +1260,7 @@ bool Game::removeCreature(const std::shared_ptr<Creature> &creature, bool isLogo
 	return true;
 }
 
+/*
 void Game::executeDeath(uint32_t creatureId) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
 	std::shared_ptr<Creature> creature = getCreatureByID(creatureId);
@@ -1266,6 +1269,7 @@ void Game::executeDeath(uint32_t creatureId) {
 		creature->onDeath();
 	}
 }
+*/
 
 void Game::playerTeleport(uint32_t playerId, const Position &newPosition) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
@@ -3424,6 +3428,7 @@ void Game::playerEquipItem(uint32_t playerId, uint16_t itemId, bool hasTier /* =
 				ret = internalMoveItem(equipItem->getParent(), rightItem->getContainer(), 0, equipItem, equipItem->getItemCount(), nullptr);
 			}
 		} else {
+			const auto &leftItem = player->getInventoryItem(CONST_SLOT_LEFT);
 			const int32_t &slotPosition = equipItem->getSlotPosition();
 			// Checks if a two-handed item is being equipped in the left slot when the right slot is already occupied and move to backpack
 			if (
@@ -3432,8 +3437,33 @@ void Game::playerEquipItem(uint32_t playerId, uint16_t itemId, bool hasTier /* =
 				&& rightItem
 				&& !(it.weaponType == WEAPON_DISTANCE)
 				&& !rightItem->isQuiver()
+				&& (!leftItem || leftItem->getWeaponType() != WEAPON_DISTANCE)
 			) {
 				ret = internalCollectManagedItems(player, rightItem, getObjectCategory(rightItem), false);
+			}
+
+			// Check if trying to equip a quiver while another quiver is already equipped in the right slot
+			if (slot == CONST_SLOT_RIGHT && rightItem && rightItem->isQuiver() && it.isQuiver()) {
+				// Replace the existing quiver with the new one
+				ret = internalMoveItem(rightItem->getParent(), player, INDEX_WHEREEVER, rightItem, rightItem->getItemCount(), nullptr);
+				if (ret == RETURNVALUE_NOERROR) {
+					g_logger().debug("Quiver {} was unequipped to equip new quiver", rightItem->getName());
+				} else {
+					player->sendCancelMessage(ret);
+					return;
+				}
+			} else {
+				// Check if trying to equip a shield while a two-handed weapon is equipped in the left slot
+				if (slot == CONST_SLOT_RIGHT && leftItem && leftItem->getSlotPosition() & SLOTP_TWO_HAND) {
+					// Unequip the two-handed weapon from the left slot
+					ret = internalMoveItem(leftItem->getParent(), player, INDEX_WHEREEVER, leftItem, leftItem->getItemCount(), nullptr);
+					if (ret == RETURNVALUE_NOERROR) {
+						g_logger().debug("Two-handed weapon {} was unequipped to equip shield", leftItem->getName());
+					} else {
+						player->sendCancelMessage(ret);
+						return;
+					}
+				}
 			}
 
 			if (slotItem) {
@@ -5886,7 +5916,8 @@ void Game::playerSetAttackedCreature(uint32_t playerId, uint32_t creatureId) {
 	}
 
 	player->setAttackedCreature(attackCreature);
-	updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	//updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	player->updateCreatureWalk();
 }
 
 void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
@@ -5896,7 +5927,8 @@ void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId) {
 	}
 
 	player->setAttackedCreature(nullptr);
-	updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	//updateCreatureWalk(player->getID()); // internally uses addEventWalk.
+	player->updateCreatureWalk();
 	player->setFollowCreature(getCreatureByID(creatureId));
 }
 
@@ -6483,6 +6515,7 @@ bool Game::internalCreatureSay(const std::shared_ptr<Creature> &creature, SpeakC
 	return true;
 }
 
+/*
 void Game::checkCreatureWalk(uint32_t creatureId) {
 	const auto &creature = getCreatureByID(creatureId);
 	if (creature && creature->getHealth() > 0) {
@@ -6503,6 +6536,7 @@ void Game::checkCreatureAttack(uint32_t creatureId) {
 		creature->onAttacking(0);
 	}
 }
+*/
 
 void Game::addCreatureCheck(const std::shared_ptr<Creature> &creature) {
 	if (creature->isRemoved()) {
@@ -6511,12 +6545,13 @@ void Game::addCreatureCheck(const std::shared_ptr<Creature> &creature) {
 
 	creature->creatureCheck.store(true);
 
-	if (creature->inCheckCreaturesVector.load()) {
+	//if (creature->inCheckCreaturesVector.load()) {
+	if (creature->inCheckCreaturesVector.exchange(true)) {
 		// already in a vector
 		return;
 	}
 
-	creature->inCheckCreaturesVector.store(true);
+	//creature->inCheckCreaturesVector.store(true);
 
 	creature->safeCall([this, creature] {
 		checkCreatureLists[uniform_random(0, EVENT_CREATURECOUNT - 1)].emplace_back(creature);
@@ -6535,10 +6570,22 @@ void Game::checkCreatures() {
 	static size_t index = 0;
 
 	std::erase_if(checkCreatureLists[index], [this](const std::shared_ptr<Creature> creature) {
-		if (creature->creatureCheck && creature->isAlive()) {
+		if (creature && creature->creatureCheck && creature->isAlive()) {
 			creature->onThink(EVENT_CREATURE_THINK_INTERVAL);
-			creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
-			creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
+			//creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
+			//creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
+			if (creature->getMonster()) {
+				// The monster's onThink is executed asynchronously,
+				// so the target is updated later, so we need to postpone the actions below.
+				g_dispatcher().addEvent([creature] {
+					if (creature->isAlive()) {
+						creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
+						creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
+					} }, __METRICS_METHOD_NAME__);
+			} else {
+				creature->onAttacking(EVENT_CREATURE_THINK_INTERVAL);
+				creature->executeConditions(EVENT_CREATURE_THINK_INTERVAL);
+			}
 			return false;
 		}
 
@@ -7507,9 +7554,11 @@ bool Game::combatChangeHealth(const std::shared_ptr<Creature> &attacker, const s
 
 		target->drainHealth(attacker, realDamage);
 		if (realDamage > 0 && targetMonster) {
+			/*
 			if (attackerPlayer && attackerPlayer->getPlayer()) {
 				attackerPlayer->updateImpactTracker(damage.secondary.type, damage.secondary.value);
 			}
+			*/
 
 			if (targetMonster->israndomStepping()) {
 				targetMonster->setIgnoreFieldDamage(true);
@@ -8087,6 +8136,7 @@ void Game::addDistanceEffect(const CreatureVector &spectators, const Position &f
 	}
 }
 
+/*
 void Game::checkImbuements() const {
 	for (const auto &[mapPlayerId, mapPlayer] : getPlayers()) {
 		if (!mapPlayer) {
@@ -8096,6 +8146,7 @@ void Game::checkImbuements() const {
 		mapPlayer->updateInventoryImbuement();
 	}
 }
+*/
 
 void Game::checkLight() {
 	lightHour += lightHourDelta;
@@ -9079,7 +9130,7 @@ void Game::playerCreateMarketOffer(uint32_t playerId, uint8_t type, uint16_t ite
 			return;
 		}
 
-		std::shared_ptr<DepotLocker> depotLocker = player->getDepotLocker(player->getLastDepotId());
+		const std::shared_ptr<DepotLocker> &depotLocker = player->getDepotLocker(player->getLastDepotId());
 		if (depotLocker == nullptr) {
 			offerStatus << "Depot locker is nullptr for player " << player->getName();
 			return;
@@ -9162,6 +9213,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 		return;
 	}
 
+	const auto &playerInbox = player->getInbox();
 	if (offer.type == MARKETACTION_BUY) {
 		player->setBankBalance(player->getBankBalance() + offer.price * offer.amount);
 		g_metrics().addCounter("balance_decrease", offer.price * offer.amount, { { "player", player->getName() }, { "context", "market_purchase" } });
@@ -9181,7 +9233,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 			while (tmpAmount > 0) {
 				int32_t stackCount = std::min<int32_t>(it.stackSize, tmpAmount);
 				const auto &item = Item::CreateItem(it.id, stackCount);
-				if (internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
+				if (internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					break;
 				}
 
@@ -9201,7 +9253,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 
 			for (uint16_t i = 0; i < offer.amount; ++i) {
 				const auto &item = Item::CreateItem(it.id, subType);
-				if (internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
+				if (internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					break;
 				}
 
@@ -9259,35 +9311,41 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 		return;
 	}
 
+	const auto &playerInbox = player->getInbox();
+
 	uint64_t totalPrice = offer.price * amount;
 
 	// The player has an offer to by something and someone is going to sell to item type
 	// so the market action is 'buy' as who created the offer is buying.
 	if (offer.type == MARKETACTION_BUY) {
-		std::shared_ptr<DepotLocker> depotLocker = player->getDepotLocker(player->getLastDepotId());
+		const std::shared_ptr<DepotLocker> &depotLocker = player->getDepotLocker(player->getLastDepotId());
 		if (depotLocker == nullptr) {
 			offerStatus << "Depot locker is nullptr";
 			return;
 		}
 
-		std::shared_ptr<Player> buyerPlayer = getPlayerByGUID(offer.playerId, true);
+		const std::shared_ptr<Player> &buyerPlayer = getPlayerByGUID(offer.playerId, true);
 		if (!buyerPlayer) {
 			offerStatus << "Failed to load buyer player " << player->getName();
 			return;
 		}
 
-		if (!buyerPlayer->getAccount()) {
+		const auto &buyerPlayerAccount = buyerPlayer->getAccount();
+		if (!buyerPlayerAccount) {
 			player->sendTextMessage(MESSAGE_MARKET, "Cannot accept offer.");
 			return;
 		}
 
-		if (player == buyerPlayer || player->getAccount() == buyerPlayer->getAccount()) {
+		const auto &playerAccount = player->getAccount();
+		if (player == buyerPlayer || playerAccount == buyerPlayerAccount) {
 			player->sendTextMessage(MESSAGE_MARKET, "You cannot accept your own offer.");
 			return;
 		}
 
+		const auto &buyerPlayerInbox = buyerPlayer->getInbox();
+
 		if (it.id == ITEM_STORE_COIN) {
-			auto [transferableCoins, error] = player->getAccount()->getCoins(CoinType::Transferable);
+			auto [transferableCoins, error] = playerAccount->getCoins(CoinType::Transferable);
 
 			if (error != AccountErrors_t::Ok) {
 				offerStatus << "Failed to load transferable coins for player " << player->getName();
@@ -9299,7 +9357,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 				return;
 			}
 
-			player->getAccount()->removeCoins(
+			playerAccount->removeCoins(
 				CoinType::Transferable,
 				amount,
 				"Sold on Market"
@@ -9334,7 +9392,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 			while (tmpAmount > 0) {
 				uint16_t stackCount = std::min<uint16_t>(it.stackSize, tmpAmount);
 				const auto &item = Item::CreateItem(it.id, stackCount);
-				if (internalAddItem(buyerPlayer->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
+				if (internalAddItem(buyerPlayerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					offerStatus << "Failed to add player inbox stackable item for buy offer for player " << player->getName();
 
 					break;
@@ -9356,7 +9414,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 
 			for (uint16_t i = 0; i < amount; ++i) {
 				const auto &item = Item::CreateItem(it.id, subType);
-				if (internalAddItem(buyerPlayer->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
+				if (internalAddItem(buyerPlayerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					offerStatus << "Failed to add player inbox item for buy offer for player " << player->getName();
 
 					break;
@@ -9407,7 +9465,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 				const auto &item = Item::CreateItem(it.id, stackCount);
 				if (
 					// Init-statement
-					auto ret = internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT);
+					auto ret = internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT);
 					// Condition
 					ret != RETURNVALUE_NOERROR
 				) {
@@ -9435,7 +9493,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 				const auto &item = Item::CreateItem(it.id, subType);
 				if (
 					// Init-statement
-					auto ret = internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT);
+					auto ret = internalAddItem(playerInbox, item, INDEX_WHEREEVER, FLAG_NOLIMIT);
 					// Condition
 					ret != RETURNVALUE_NOERROR
 				) {

@@ -174,7 +174,7 @@ public:
 	bool placeCreature(const std::shared_ptr<Creature> &creature, const Position &pos, bool extendedPos = false, bool force = false);
 
 	bool removeCreature(const std::shared_ptr<Creature> &creature, bool isLogout = true);
-	void executeDeath(uint32_t creatureId);
+	//void executeDeath(uint32_t creatureId);
 
 	void addCreatureCheck(const std::shared_ptr<Creature> &creature);
 	static void removeCreatureCheck(const std::shared_ptr<Creature> &creature);
@@ -449,9 +449,9 @@ public:
 	void setGameState(GameState_t newState);
 
 	// Events
-	void checkCreatureWalk(uint32_t creatureId);
-	void updateCreatureWalk(uint32_t creatureId);
-	void checkCreatureAttack(uint32_t creatureId);
+	//void checkCreatureWalk(uint32_t creatureId);
+	//void updateCreatureWalk(uint32_t creatureId);
+	//void checkCreatureAttack(uint32_t creatureId);
 	void checkCreatures();
 	void checkLight();
 
@@ -748,7 +748,7 @@ private:
 	std::map<uint32_t, int32_t> forgeMonsterEventIds;
 	std::unordered_set<uint32_t> fiendishMonsters;
 	std::unordered_set<uint32_t> influencedMonsters;
-	void checkImbuements() const;
+	//void checkImbuements() const;
 	bool playerSaySpell(const std::shared_ptr<Player> &player, SpeakClasses type, const std::string &text);
 	void playerWhisper(const std::shared_ptr<Player> &player, const std::string &text);
 	bool playerYell(const std::shared_ptr<Player> &player, const std::string &text);
